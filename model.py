@@ -41,7 +41,9 @@ import torch.nn as nn
 ##새로운 구조를 하는데, x_1 은 이미 2048이니까 2048 로 가는 Linear 하지 않고 해 보기. -> 시간이 너무 느렸음.
 ##새로운 구조를 하는데 batch size 3 -> 걸린 시간 : 4m31s, acc : 0.9678 %
 ## 50으로 두 개 뽑은 다음에 더할 때에는 -> 걸린 시간 : 4m41s, acc : 0.972 %
-##그럼 50으로 뽑은 다음에 더할 때로 해서 fc 단에 leakyrelu 사용 ->
+
+
+##양 날개로 펼치지 말고, 4*4*128 로 바꾼 다음에 fc layer 를 2048 -> 50 으로 하는
 
 class convnet(nn.Module):
     def __init__(self):
@@ -57,62 +59,26 @@ class convnet(nn.Module):
             nn.MaxPool2d(2)
         )
         self.layer2 = nn.Sequential(
-            nn.Linear( 13 * 13 * 64, 2048),
-            nn.LeakyReLU(0.2, inplace = True)
-        )
-        self.layer3 = nn.Sequential(
             nn.Conv2d(64, 128, 3, stride = 1),
             nn.ReLU(),
             nn.Conv2d(128, 128, 3, stride = 1),
             nn.ReLU(),
             nn.MaxPool2d(2)
         )
-        self.layer4 = nn.Linear(4*4*128, 50)
-        self.layer5 = nn.Linear(2048, 50)
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(128, 128, 2, stride = 1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, 2, stride = 1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        self.layer4 = nn.Conv2d(128, 50, 1, stride = 1)
         
-# #         self.layer3 = nn.Sequential(
-# #             nn.Conv2d(32, 64, 3, stride = 1),
-# #             nn.BatchNorm2d(32),
-# #             nn.ReLU(),
-# #             nn.MaxPool2d(2)
-# #         )
-#         self.layer4 = nn.Sequential(
-            
-#         )
-# #         self.layer5 = nn.Sequential(
-# #             nn.Linear(150, 100),
-# #             nn.ReLU()
-# #         )
-#         self.layer6 = nn.Sequential(
-#             # nn.Dropout(0.3),
-            
-#         )
-
-#     def forward(self, x):
-#         x = self.layer1(x)
-        
-#         x_1 = x.clone()
-#         x_1 = self.layer3(x_1)
-#         x_1 = x_1.view(-1, 4*4*128)
-# #         x_1 = self.layer4(x_1)
-        
-#         x = x.view(-1, 13 * 13 * 64)
-#         x = self.layer2(x)
-        
-#         x += x_1
         
 #         return self.layer5(x)
-    def forward(self, x): ##50으로 나온 값을 더하기
+    def forward(self, x):  ##1x1 conv layer
         x = self.layer1(x)
-        
-        x_1 = x.clone()
-        x_1 = self.layer3(x_1)
-        x_1 = x_1.view(-1, 4*4*128)
-        x_1 = self.layer4(x_1)
-        
-        x = x.view(-1, 13 * 13 * 64)
         x = self.layer2(x)
-        x = self.layer5(x)
-        
-        
-        return x + x_1
+        x = self.layer3(x)
+        x = self.layer4(x)
+        return x.view(-1, 50)
